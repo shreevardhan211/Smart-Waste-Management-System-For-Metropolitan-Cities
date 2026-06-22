@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Waste Management — City Operations Console</title>
+
+<!-- Google Fonts: display + body + mono, per design plan -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<!-- Leaflet.js for map visualization (no API key required, unlike Google Maps) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Chart.js for historical trend graphs -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+  <!-- ===================== TOP BAR ===================== -->
+  <header class="topbar">
+    <div class="topbar__brand">
+      <div class="topbar__mark">SW</div>
+      <div>
+        <div class="topbar__title">Smart Waste Management</div>
+        <div class="topbar__subtitle">Metropolitan City Operations Console</div>
+      </div>
+    </div>
+    <div class="topbar__status">
+      <div class="live-pulse">
+        <span class="live-pulse__dot"></span>
+        <span id="liveLabel">LIVE · SIMULATED FEED</span>
+      </div>
+      <div class="clock" id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <main class="shell">
+
+    <!-- ===================== SUMMARY STRIP ===================== -->
+    <section class="summary-strip" id="summaryStrip">
+      <div class="summary-tile summary-tile--amber">
+        <div class="summary-tile__label">Total Bins</div>
+        <div class="summary-tile__value" id="statTotal">—</div>
+      </div>
+      <div class="summary-tile summary-tile--green">
+        <div class="summary-tile__label">Normal (Green)</div>
+        <div class="summary-tile__value" id="statGreen">—</div>
+      </div>
+      <div class="summary-tile summary-tile--yellow">
+        <div class="summary-tile__label">Filling Up (Yellow)</div>
+        <div class="summary-tile__value" id="statYellow">—</div>
+      </div>
+      <div class="summary-tile summary-tile--red">
+        <div class="summary-tile__label">Needs Collection (Red)</div>
+        <div class="summary-tile__value" id="statRed">—</div>
+      </div>
+    </section>
+
+    <!-- ===================== ALERTS ===================== -->
+    <div class="section-heading">
+      <h2>Proactive Alerts</h2>
+      <span class="hint" id="alertsHint">checking every 8s</span>
+    </div>
+    <section class="alerts-rail" id="alertsRail">
+      <div class="empty-state">No active alerts right now.</div>
+    </section>
+
+    <!-- ===================== BIN CARDS ===================== -->
+    <div class="section-heading">
+      <h2>Bin Fleet Status</h2>
+      <span class="hint" id="refreshHint">auto-refresh: 8s</span>
+    </div>
+    <section class="bins-grid" id="binsGrid">
+      <!-- Cards injected by dashboard.js -->
+    </section>
+
+    <!-- ===================== MAP + ROUTE OPTIMIZATION ===================== -->
+    <div class="section-heading">
+      <h2>Collection Route Optimization</h2>
+      <span class="hint">nearest-neighbor heuristic from depot</span>
+    </div>
+    <section class="panel-row">
+      <div class="panel">
+        <div class="panel__header">
+          <span class="panel__title">Bin Locations Map</span>
+          <span class="panel__meta" id="mapMeta">Leaflet · OpenStreetMap</span>
+        </div>
+        <div id="map"></div>
+      </div>
+      <div class="panel">
+        <div class="panel__header">
+          <span class="panel__title">Optimized Truck Route</span>
+          <button class="btn" id="recalcRouteBtn">Recalculate</button>
+        </div>
+        <div class="route-stats">
+          <div class="route-stat">
+            <div class="route-stat__value" id="routeBinCount">—</div>
+            <div class="route-stat__label">Stops</div>
+          </div>
+          <div class="route-stat">
+            <div class="route-stat__value" id="routeDistance">—</div>
+            <div class="route-stat__label">Distance (km)</div>
+          </div>
+          <div class="route-stat">
+            <div class="route-stat__value" id="routeTime">—</div>
+            <div class="route-stat__label">Est. Time (min)</div>
+          </div>
+        </div>
+        <div class="route-list" id="routeList">
+          <div class="empty-state">No bins currently need collection.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== CHARTS / INSIGHTS ===================== -->
+    <div class="section-heading">
+      <h2>Data-Driven Waste Insights</h2>
+      <span class="hint">historical trends · last 48h</span>
+    </div>
+    <section class="panel-row">
+      <div class="panel">
+        <div class="panel__header">
+          <span class="panel__title">City-Wide Average Fill Level</span>
+          <span class="panel__meta">hourly average, all bins</span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="cityTrendChart"></canvas>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel__header">
+          <span class="panel__title">Status Distribution</span>
+          <span class="panel__meta">current snapshot</span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="statusDonutChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== AI PREDICTIONS ===================== -->
+    <div class="section-heading">
+      <h2>AI Fill-Level Forecast</h2>
+      <span class="hint">linear regression · next 6 hours</span>
+    </div>
+    <section class="panel">
+      <div class="predict-grid" id="predictGrid">
+        <div class="empty-state">Gathering data for predictions…</div>
+      </div>
+    </section>
+
+    <div class="footer-note">
+      SMART WASTE MANAGEMENT SYSTEM — DEMO BUILD<br>
+      Sensor data is SIMULATED for this prototype · Architecture is ready for real ultrasonic/load-cell IoT hardware via POST /api/sensor-data
+    </div>
+  </main>
+
+  <!-- ===================== BIN DETAIL MODAL ===================== -->
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal">
+      <button class="modal__close" id="modalClose">&times;</button>
+      <div id="modalContent">
+        <!-- Injected by dashboard.js -->
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
